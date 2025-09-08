@@ -81,6 +81,7 @@
       position: fixed;
       left: 50%; bottom: 32px; transform: translateX(-50%);
       min-width: min(70vw, 900px);
+      min-height: 130px;
       max-width: 90vw;
       background: var(--panel);
       border: 6px solid var(--panel-border);
@@ -109,7 +110,7 @@
   </style>
 </head>
 <body>
-  <div id="round-info"></div>
+  <!-- <div id="round-info"></div> -->
   <main id="stage">
     <div id="image-frame">
       <img id="current-image" src="" alt="Картинка">
@@ -120,25 +121,24 @@
     <div id="timer2" class="timer-box">45</div>
     <div id="answer-bar"><div id="answer"></div></div>
   </div>
+  <!-- Регистрация раундов без сервера: подключаем JS-файлы с данными -->
+  <script>
+    // Глобальный реестр раундов. Внешние файлы могут вызвать addRound([...])
+    window.__rounds = window.__rounds || [];
+    window.addRound = function(images) { window.__rounds.push(images); };
+  </script>
+  <script src="round1/round.data.js"></script>
   <script>
     /*
-      Разместите изображения для раундов в подкаталогах рядом с этим HTML-файлом:
-      round1/, round2/ и т.д. Затем перечислите имена файлов внутри массива rounds ниже.
-      Ответ игрока берётся из имени файла (без расширения), где символы "_" и "-" заменяются пробелами.
+      Данные раундов загружаются из JSON-файлов.
+      См. файл `rounds.json` (манифест), где перечислены JSON каждого раунда.
+      Каждый файл раунда может иметь формат:
+        ["1.jpg", "2.jpg", ...]                                   // массив имён/путей
+        или { "basePath": "round1", "images": ["1.jpg", ...] }   // объект с путём и массивом
+      Ответ берётся из имени файла картинки (без расширения), где "_" и "-" заменяются пробелами.
     */
-    const rounds = [
-      // Пример заполнения. Замените элементами вроде 'round1/cat.jpg', 'round1/dog.jpg' и т.д.
-      [
-        "round1/Даниил.jpg",
-        "round1/Херь.jpg",
-        "round1/Вторая херь.jpg",
-        "round1/4.jpg",
-        "round1/5.jpg",
-        "round1/6.jpg",
-        "round1/7.jpg",
-        "round1/8.jpg",
-      ]
-    ];
+    // Массив раундов инициализируется из подключённых data.js файлов
+    let rounds = window.__rounds || [];
 
     let currentRoundIndex = 0;
     let currentImageIndex = 0;
@@ -153,7 +153,7 @@
     const timerElems = [document.getElementById('timer1'), document.getElementById('timer2')];
     const currentImageElem = document.getElementById('current-image');
     const answerElem = document.getElementById('answer');
-    const roundInfoElem = document.getElementById('round-info');
+    // const roundInfoElem = document.getElementById('round-info');
 
     /**
      * Проигрывает звуковой сигнал. Положительный звук имеет более высокую частоту,
@@ -194,8 +194,8 @@
     function updateRoundInfo() {
       if (currentRoundIndex < rounds.length) {
         const round = rounds[currentRoundIndex];
-        roundInfoElem.textContent = `Раунд ${currentRoundIndex + 1}/${rounds.length}` +
-          ` – Картинка ${currentImageIndex + 1}/${round.length}`;
+        // roundInfoElem.textContent = `Раунд ${currentRoundIndex + 1}/${rounds.length}` +
+        //   ` – Картинка ${currentImageIndex + 1}/${round.length}`;
       }
     }
 
@@ -332,8 +332,14 @@
       }
     });
 
-    // Запускаем игру при загрузке страницы
-    window.addEventListener('load', startGame);
+    // Старт игры: данные уже зарегистрированы внешними скриптами
+    window.addEventListener('load', () => {
+      if (!rounds || !rounds.length) {
+        answerElem.textContent = 'Нет данных раундов. Подключите *round.data.js* файлы.';
+        return;
+      }
+      startGame();
+    });
   </script>
 </body>
 </html>
