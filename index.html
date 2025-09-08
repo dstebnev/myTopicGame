@@ -4,70 +4,121 @@
   <meta charset="UTF-8">
   <title>Моя тема</title>
   <style>
+    :root {
+      --bg: #1f1f1f;
+      --panel: #2b3282; /* глубокий синий */
+      --panel-border: #e8ecff;
+      --white: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+    }
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      background-color: #f2f2f2;
+      background-color: var(--bg);
+      color: var(--white);
       margin: 0;
       padding: 0;
     }
-    #game-container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      border-radius: 8px;
+
+    /* Основная область для центрирования изображения */
+    #stage {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 48px 24px 160px; /* снизу пространство под таймеры и ответ */
+    }
+
+    #image-frame {
+      max-width: min(90vw, 1100px);
+      max-height: min(65vh, 700px);
+      display: grid;
+      place-items: center;
+      border: 6px solid var(--panel-border);
+      background: #111;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     }
     #current-image {
-      max-width: 100%;
-      max-height: 400px;
-      margin: 15px auto;
+      width: 100%;
+      height: auto;
+      max-height: calc(min(65vh, 700px) - 12px);
       display: block;
-      border: 1px solid #ddd;
     }
-    .timers {
-      display: flex;
-      justify-content: center;
-      gap: 40px;
-      margin-top: 10px;
+
+    /* HUD снизу: таймеры в углах и поле ответа по центру */
+    #hud {
+      position: fixed;
+      left: 0; right: 0; bottom: 32px;
+      pointer-events: none; /* элементы не кликабельны, просто отображение */
     }
-    .timer {
-      font-size: 24px;
-      padding: 10px 20px;
+    .timer-box {
+      position: fixed;
+      bottom: 32px;
+      width: 120px;
+      height: 120px;
+      background: var(--panel);
       border-radius: 6px;
-      background-color: #eaeaea;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 52px;
+      color: var(--white);
     }
-    .timer.active {
-      background-color: #d0ffd0;
-      font-weight: bold;
+    #timer1 { left: 32px; }
+    #timer2 { right: 32px; }
+
+    .timer-box.active {
+      outline: 6px solid var(--panel-border);
+      outline-offset: 0;
     }
-    .timer.penalty {
-      background-color: #ffdddd;
-      color: #d00;
+    .timer-box.penalty {
+      filter: brightness(0.8) saturate(1.1);
+    }
+
+    #answer-bar {
+      position: fixed;
+      left: 50%; bottom: 32px; transform: translateX(-50%);
+      min-width: min(70vw, 900px);
+      max-width: 90vw;
+      background: var(--panel);
+      border: 6px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 22px 24px;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+      pointer-events: none;
     }
     #answer {
-      margin-top: 15px;
-      font-size: 22px;
-      font-weight: bold;
-      color: #333;
+      font-size: clamp(24px, 4.2vw, 48px);
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: 1px;
     }
+
+    /* Вспомогательная информация о раунде можно скрыть */
     #round-info {
-      font-size: 20px;
-      font-weight: bold;
-      margin-top: 10px;
+      position: fixed;
+      top: 16px; left: 50%; transform: translateX(-50%);
+      font-size: 16px;
+      color: #bfbfbf;
+      opacity: 0.8;
     }
   </style>
 </head>
 <body>
-  <div id="game-container">
-    <div id="round-info"></div>
-    <img id="current-image" src="" alt="Картинка будет здесь">
-    <div class="timers">
-      <div id="timer1" class="timer">Игрок 1: 45</div>
-      <div id="timer2" class="timer">Игрок 2: 45</div>
+  <div id="round-info"></div>
+  <main id="stage">
+    <div id="image-frame">
+      <img id="current-image" src="" alt="Картинка">
     </div>
-    <div id="answer"></div>
+  </main>
+  <div id="hud">
+    <div id="timer1" class="timer-box">45</div>
+    <div id="timer2" class="timer-box">45</div>
+    <div id="answer-bar"><div id="answer"></div></div>
   </div>
   <script>
     /*
@@ -78,13 +129,14 @@
     const rounds = [
       // Пример заполнения. Замените элементами вроде 'round1/cat.jpg', 'round1/dog.jpg' и т.д.
       [
-        "round1/1.jpg",
-        "round1/2.jpg",
-        "round1/3.jpg",
+        "round1/Даниил.jpg",
+        "round1/Херь.jpg",
+        "round1/Вторая херь.jpg",
         "round1/4.jpg",
         "round1/5.jpg",
         "round1/6.jpg",
         "round1/7.jpg",
+        "round1/8.jpg",
       ]
     ];
 
@@ -171,8 +223,8 @@
 
     // Отобразить значения таймеров и выделить активного игрока
     function updateTimersDisplay() {
-      timerElems[0].textContent = `Игрок 1: ${timers[0].toFixed(1)}`;
-      timerElems[1].textContent = `Игрок 2: ${timers[1].toFixed(1)}`;
+      timerElems[0].textContent = `${Math.max(0, Math.ceil(timers[0]))}`;
+      timerElems[1].textContent = `${Math.max(0, Math.ceil(timers[1]))}`;
       timerElems.forEach(elem => elem.classList.remove('active'));
       timerElems.forEach(elem => elem.classList.remove('penalty'));
       if (!gameEnded) {
@@ -212,7 +264,7 @@
     // Показать правильный ответ
     function showAnswer() {
       const answer = parseAnswer(rounds[currentRoundIndex][currentImageIndex]);
-      answerElem.textContent = `Ответ: ${answer}`;
+      answerElem.textContent = `${answer}`.toUpperCase();
     }
 
     // Обработать правильный ответ (Enter)
