@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Моя тема</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+    }
+    #game-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    #current-image {
+      max-width: 100%;
+      max-height: 400px;
+      margin: 15px auto;
+      display: block;
+      border: 1px solid #ddd;
+    }
+    .timers {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 10px;
+    }
+    .timer {
+      font-size: 24px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      background-color: #eaeaea;
+    }
+    .timer.active {
+      background-color: #d0ffd0;
+      font-weight: bold;
+    }
+    .timer.penalty {
+      background-color: #ffdddd;
+      color: #d00;
+    }
+    #answer {
+      margin-top: 15px;
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+    }
+    #round-info {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="round-info"></div>
+    <img id="current-image" src="" alt="Картинка будет здесь">
+    <div class="timers">
+      <div id="timer1" class="timer">Игрок 1: 45</div>
+      <div id="timer2" class="timer">Игрок 2: 45</div>
+    </div>
+    <div id="answer"></div>
+  </div>
+  <script>
+    /*
+      Разместите изображения для раундов в подкаталогах рядом с этим HTML-файлом:
+      round1/, round2/ и т.д. Затем перечислите имена файлов внутри массива rounds ниже.
+      Ответ игрока берётся из имени файла (без расширения), где символы "_" и "-" заменяются пробелами.
+    */
+    const rounds = [
+      // Пример заполнения. Замените элементами вроде 'round1/cat.jpg', 'round1/dog.jpg' и т.д.
+      [
+        "round1/1.jpg",
+        "round1/2.jpg",
+        "round1/3.jpg",
+        "round1/4.jpg",
+        "round1/5.jpg",
+        "round1/6.jpg",
+        "round1/7.jpg",
+      ]
+    ];
+
+    let currentRoundIndex = 0;
+    let currentImageIndex = 0;
+    let activePlayer = 1; // 1 или 2
+    const initialTime = 45.0;
+    const timers = [initialTime, initialTime]; // timers[0] для игрока 1, timers[1] для игрока 2
+
+    let timerInterval = null;
+    let answerShown = false;
+    let gameEnded = false;
+
+    const timerElems = [document.getElementById('timer1'), document.getElementById('timer2')];
+    const currentImageElem = document.getElementById('current-image');
+    const answerElem = document.getElementById('answer');
+    const roundInfoElem = document.getElementById('round-info');
+
+    /**
+     * Проигрывает звуковой сигнал. Положительный звук имеет более высокую частоту,
+     * отрицательный — более низкую. Этот способ не требует внешних аудиофайлов.
+     */
+    function playBeep(type) {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      oscillator.type = 'sine';
+      if (type === 'positive') {
+        oscillator.frequency.value = 880; // Гц
+      } else {
+        oscillator.frequency.value = 220; // Гц
+      }
+      gainNode.gain.setValueAtTime(0.2, context.currentTime);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.25);
+    }
+
+    // Запустить игру
+    function startGame() {
+      timers[0] = initialTime;
+      timers[1] = initialTime;
+      activePlayer = 1;
+      currentRoundIndex = 0;
+      currentImageIndex = 0;
+      gameEnded = false;
+      updateRoundInfo();
+      loadCurrentImage();
+      updateTimersDisplay();
+      startTimer(activePlayer);
+    }
+
+    // Обновить информацию о раунде
+    function updateRoundInfo() {
+      if (currentRoundIndex < rounds.length) {
+        const round = rounds[currentRoundIndex];
+        roundInfoElem.textContent = `Раунд ${currentRoundIndex + 1}/${rounds.length}` +
+          ` – Картинка ${currentImageIndex + 1}/${round.length}`;
+      }
+    }
+
+    // Запуск таймера для активного игрока
+    function startTimer(player) {
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (gameEnded) return;
+        const idx = player - 1;
+        timers[idx] -= 0.1;
+        if (timers[idx] <= 0) {
+          timers[idx] = 0;
+          updateTimersDisplay();
+          endGame();
+        } else {
+          updateTimersDisplay();
+        }
+      }, 100);
+    }
+
+    // Остановить таймер
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // Отобразить значения таймеров и выделить активного игрока
+    function updateTimersDisplay() {
+      timerElems[0].textContent = `Игрок 1: ${timers[0].toFixed(1)}`;
+      timerElems[1].textContent = `Игрок 2: ${timers[1].toFixed(1)}`;
+      timerElems.forEach(elem => elem.classList.remove('active'));
+      timerElems.forEach(elem => elem.classList.remove('penalty'));
+      if (!gameEnded) {
+        timerElems[activePlayer - 1].classList.add('active');
+      }
+    }
+
+    // Загрузить текущую картинку
+    function loadCurrentImage() {
+      if (currentRoundIndex >= rounds.length) {
+        endGame();
+        return;
+      }
+      const round = rounds[currentRoundIndex];
+      if (currentImageIndex >= round.length) {
+        // Переходим к следующему раунду
+        currentRoundIndex++;
+        if (currentRoundIndex >= rounds.length) {
+          endGame();
+          return;
+        } else {
+          currentImageIndex = 0;
+        }
+      }
+      updateRoundInfo();
+      const imgPath = rounds[currentRoundIndex][currentImageIndex];
+      currentImageElem.src = imgPath;
+      answerElem.textContent = '';
+    }
+
+    // Получить ответ из имени файла
+    function parseAnswer(path) {
+      const fileName = path.substring(path.lastIndexOf('/') + 1, path.lastIndexOf('.'));
+      return decodeURIComponent(fileName).replace(/[_-]/g, ' ');
+    }
+
+    // Показать правильный ответ
+    function showAnswer() {
+      const answer = parseAnswer(rounds[currentRoundIndex][currentImageIndex]);
+      answerElem.textContent = `Ответ: ${answer}`;
+    }
+
+    // Обработать правильный ответ (Enter)
+    function handleCorrect() {
+      if (gameEnded || answerShown) return;
+      showAnswer();
+      playBeep('positive');
+      stopTimer();
+      answerShown = true;
+      // Пауза 0.5 секунды, затем переход хода
+      setTimeout(() => {
+        answerShown = false;
+        currentImageIndex++;
+        // Смена игрока
+        activePlayer = activePlayer === 1 ? 2 : 1;
+        loadCurrentImage();
+        if (!gameEnded) {
+          startTimer(activePlayer);
+        }
+      }, 500);
+    }
+
+    // Обработать пропуск (Пробел)
+    function handlePass() {
+      if (gameEnded || answerShown) return;
+      showAnswer();
+      playBeep('negative');
+      // Наказание 3 секунды: таймер продолжает тикать, цвет меняется
+      const idx = activePlayer - 1;
+      timerElems[idx].classList.add('penalty');
+      answerShown = true;
+      setTimeout(() => {
+        timerElems[idx].classList.remove('penalty');
+        answerShown = false;
+        currentImageIndex++;
+        loadCurrentImage();
+      }, 3000);
+    }
+
+    // Завершить игру
+    function endGame() {
+      if (gameEnded) return;
+      gameEnded = true;
+      stopTimer();
+      let winner;
+      if (timers[0] > timers[1]) {
+        winner = 'Игрок 1 победил!';
+      } else if (timers[1] > timers[0]) {
+        winner = 'Игрок 2 победил!';
+      } else {
+        winner = 'Ничья!';
+      }
+      answerElem.textContent = `Игра окончена! ${winner}`;
+      // Снять выделение активного игрока
+      timerElems.forEach(elem => elem.classList.remove('active'));
+    }
+
+    // Слушаем клавиши: Enter — верно, Space — пропуск
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter') {
+        handleCorrect();
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        handlePass();
+      }
+    });
+
+    // Запускаем игру при загрузке страницы
+    window.addEventListener('load', startGame);
+  </script>
+</body>
+</html>
