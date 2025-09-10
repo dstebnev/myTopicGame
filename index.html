@@ -107,6 +107,35 @@
       color: #bfbfbf;
       opacity: 0.8;
     }
+    /* Оверлей старта и обратный отсчёт */
+    #start-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: grid;
+      place-items: center;
+      gap: 24px;
+      z-index: 2000;
+    }
+    #start-btn {
+      font-weight: 800;
+      font-size: clamp(20px, 3.2vw, 32px);
+      padding: 16px 32px;
+      color: var(--white);
+      background: var(--panel);
+      border: 6px solid var(--panel-border);
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+    #start-btn:active { transform: translateY(1px); }
+    #countdown {
+      display: none;
+      font-weight: 900;
+      font-size: clamp(64px, 14vw, 180px);
+      color: var(--white);
+      letter-spacing: 2px;
+    }
   </style>
 </head>
 <body>
@@ -116,6 +145,10 @@
       <img id="current-image" src="" alt="Картинка">
     </div>
   </main>
+  <div id="start-overlay">
+    <button id="start-btn" type="button">СТАРТ</button>
+    <div id="countdown" aria-hidden="true"></div>
+  </div>
   <div id="hud">
     <div id="timer1" class="timer-box">45</div>
     <div id="timer2" class="timer-box">45</div>
@@ -149,6 +182,7 @@
     let timerInterval = null;
     let answerShown = false;
     let gameEnded = false;
+    let gameStarted = false;
 
     const timerElems = [document.getElementById('timer1'), document.getElementById('timer2')];
     const currentImageElem = document.getElementById('current-image');
@@ -184,6 +218,7 @@
       currentRoundIndex = 0;
       currentImageIndex = 0;
       gameEnded = false;
+      gameStarted = true;
       updateRoundInfo();
       loadCurrentImage();
       updateTimersDisplay();
@@ -269,7 +304,7 @@
 
     // Обработать правильный ответ (Enter)
     function handleCorrect() {
-      if (gameEnded || answerShown) return;
+      if (gameEnded || answerShown || !gameStarted) return;
       showAnswer();
       playBeep('positive');
       stopTimer();
@@ -289,7 +324,7 @@
 
     // Обработать пропуск (Пробел)
     function handlePass() {
-      if (gameEnded || answerShown) return;
+      if (gameEnded || answerShown || !gameStarted) return;
       showAnswer();
       playBeep('negative');
       // Наказание 3 секунды: таймер продолжает тикать, цвет меняется
@@ -338,7 +373,26 @@
         answerElem.textContent = 'Нет данных раундов. Подключите *round.data.js* файлы.';
         return;
       }
-      startGame();
+      const overlay = document.getElementById('start-overlay');
+      const startBtn = document.getElementById('start-btn');
+      const countdownEl = document.getElementById('countdown');
+      const runCountdown = () => {
+        let n = 3;
+        startBtn.style.display = 'none';
+        countdownEl.style.display = 'block';
+        countdownEl.textContent = String(n);
+        const id = setInterval(() => {
+          n -= 1;
+          if (n <= 0) {
+            clearInterval(id);
+            overlay.style.display = 'none';
+            startGame();
+          } else {
+            countdownEl.textContent = String(n);
+          }
+        }, 1000);
+      };
+      startBtn.addEventListener('click', runCountdown, { once: true });
     });
   </script>
 </body>
