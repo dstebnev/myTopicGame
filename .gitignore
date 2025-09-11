@@ -3,3 +3,6 @@ statues
 *.data.js
 *.json
 .DS_Store
+*.png
+*.jpg
+*.jpeg
