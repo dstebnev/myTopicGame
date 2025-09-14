@@ -1,8 +1,10 @@
 round*
-statues
+zhekart
 *.data.js
 *.json
 .DS_Store
 *.png
 *.jpg
 *.jpeg
+*.webp
+groceries
