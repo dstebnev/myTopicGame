@@ -1,5 +1,4 @@
 round*
-zhekart
 *.data.js
 *.json
 .DS_Store
@@ -7,4 +6,4 @@ zhekart
 *.jpg
 *.jpeg
 *.webp
-groceries
+topics
